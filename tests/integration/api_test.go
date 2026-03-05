@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/mamochiro/go-microservice-template/internal/app"
@@ -17,6 +18,7 @@ import (
 	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
 
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/dto"
+	"github.com/mamochiro/go-microservice-template/pkg/logger"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -27,14 +29,36 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
+	// Initialize logger for tests
+	logger.Init("test")
+
+	// Find project root by looking for go.mod
 	originalDir, err := os.Getwd()
 	s.Require().NoError(err)
 
-	err = os.Chdir("../..")
+	currentDir := originalDir
+	for {
+		if _, err := os.Stat(filepath.Join(currentDir, "go.mod")); err == nil {
+			break
+		}
+		parent := filepath.Dir(currentDir)
+		if parent == currentDir {
+			s.Fail("Could not find project root (go.mod)")
+		}
+		currentDir = parent
+	}
+
+	// Change to root to load config
+	err = os.Chdir(currentDir)
 	s.Require().NoError(err)
 
 	cfg, err := config.LoadConfig()
 	s.Require().NoError(err)
+
+	// Set migration path to absolute path
+	absMigrationPath, err := filepath.Abs("migrations")
+	s.Require().NoError(err)
+	cfg.Postgres.MigrationPath = absMigrationPath
 
 	err = os.Chdir(originalDir)
 	s.Require().NoError(err)
@@ -66,6 +90,7 @@ func (s *APITestSuite) TestUserLifecycle() {
 	user := &entity.User{
 		Username: "api_test_user",
 		Email:    "api_test@example.com",
+		Password: "password123",
 	}
 	body, _ := json.Marshal(user)
 
@@ -73,7 +98,7 @@ func (s *APITestSuite) TestUserLifecycle() {
 	s.NoError(err)
 	s.Equal(http.StatusCreated, resp.StatusCode)
 
-	var createdUser entity.User
+	var createdUser dto.UserResponse
 	err = json.NewDecoder(resp.Body).Decode(&createdUser)
 	s.NoError(err)
 	s.NotZero(createdUser.ID)
@@ -84,7 +109,7 @@ func (s *APITestSuite) TestUserLifecycle() {
 	s.NoError(err)
 	s.Equal(http.StatusOK, resp.StatusCode)
 
-	var foundUser entity.User
+	var foundUser dto.UserResponse
 	err = json.NewDecoder(resp.Body).Decode(&foundUser)
 	s.NoError(err)
 	s.Equal(createdUser.ID, foundUser.ID)
@@ -92,7 +117,11 @@ func (s *APITestSuite) TestUserLifecycle() {
 
 	// Update User
 	foundUser.Username = "updated_api_user"
-	body, _ = json.Marshal(foundUser)
+	updateReq := dto.UpdateUserRequest{
+		Username: foundUser.Username,
+		Email:    foundUser.Email,
+	}
+	body, _ = json.Marshal(updateReq)
 	req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/%d", baseURL, foundUser.ID), bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 

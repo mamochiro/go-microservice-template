@@ -6,12 +6,14 @@ package integration
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/mamochiro/go-microservice-template/internal/config"
 	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/database"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/repository"
+	"github.com/mamochiro/go-microservice-template/pkg/logger"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 )
@@ -23,15 +25,36 @@ type UserRepositoryTestSuite struct {
 }
 
 func (s *UserRepositoryTestSuite) SetupSuite() {
-	// Temporarily change directory to root to load config
+	// Initialize logger for tests
+	logger.Init("test")
+
+	// Find project root by looking for go.mod
 	originalDir, err := os.Getwd()
 	s.Require().NoError(err)
 
-	err = os.Chdir("../..")
+	currentDir := originalDir
+	for {
+		if _, err := os.Stat(filepath.Join(currentDir, "go.mod")); err == nil {
+			break
+		}
+		parent := filepath.Dir(currentDir)
+		if parent == currentDir {
+			s.Fail("Could not find project root (go.mod)")
+		}
+		currentDir = parent
+	}
+
+	// Change to root to load config
+	err = os.Chdir(currentDir)
 	s.Require().NoError(err)
 
 	cfg, err := config.LoadConfig()
 	s.Require().NoError(err)
+
+	// Set migration path to absolute path
+	absMigrationPath, err := filepath.Abs("migrations")
+	s.Require().NoError(err)
+	cfg.Postgres.MigrationPath = absMigrationPath
 
 	// Change back
 	err = os.Chdir(originalDir)
@@ -63,6 +86,7 @@ func (s *UserRepositoryTestSuite) TestCreateAndGetByID() {
 	user := &entity.User{
 		Username: "integration_test",
 		Email:    "test@example.com",
+		Password: "password123",
 	}
 
 	// Create
@@ -82,8 +106,8 @@ func (s *UserRepositoryTestSuite) TestList() {
 	ctx := context.Background()
 
 	users := []entity.User{
-		{Username: "user1", Email: "user1@example.com"},
-		{Username: "user2", Email: "user2@example.com"},
+		{Username: "user1", Email: "user1@example.com", Password: "password123"},
+		{Username: "user2", Email: "user2@example.com", Password: "password123"},
 	}
 
 	for i := range users {
@@ -100,7 +124,7 @@ func (s *UserRepositoryTestSuite) TestUpdate() {
 	repo := repository.NewUserRepository(s.db)
 	ctx := context.Background()
 
-	user := &entity.User{Username: "oldname", Email: "old@example.com"}
+	user := &entity.User{Username: "oldname", Email: "old@example.com", Password: "password123"}
 	err := repo.Create(ctx, user)
 	s.NoError(err)
 
@@ -117,7 +141,7 @@ func (s *UserRepositoryTestSuite) TestDelete() {
 	repo := repository.NewUserRepository(s.db)
 	ctx := context.Background()
 
-	user := &entity.User{Username: "todelete", Email: "delete@example.com"}
+	user := &entity.User{Username: "todelete", Email: "delete@example.com", Password: "password123"}
 	err := repo.Create(ctx, user)
 	s.NoError(err)
 

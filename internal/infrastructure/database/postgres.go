@@ -66,7 +66,12 @@ func runMigrations(cfg *config.Config) error {
 		cfg.Postgres.SSLMode,
 	)
 
-	m, err := migrate.New("file://migrations", dsn)
+	migrationPath := cfg.Postgres.MigrationPath
+	if migrationPath == "" {
+		migrationPath = "migrations"
+	}
+
+	m, err := migrate.New(fmt.Sprintf("file://%s", migrationPath), dsn)
 	if err != nil {
 		return err
 	}
