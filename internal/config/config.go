@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -37,6 +38,11 @@ type RedisConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, relying on environment variables or config.yaml")
+	}
+
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")

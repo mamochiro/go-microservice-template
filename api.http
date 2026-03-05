@@ -1,0 +1,37 @@
+@baseUrl = http://localhost:3003/api/v1
+
+### Health Check
+GET http://localhost:3003/health
+
+### Metrics
+GET http://localhost:3003/metrics
+
+### Create User
+# @name createUser
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+{
+    "username": "johndoe",
+    "email": "john@example.com",
+    "password": "securepassword123"
+}
+
+### List Users
+GET {{baseUrl}}/users?page=1&limit=10
+
+### Get User by ID
+@userId = {{createUser.response.body.id}}
+GET {{baseUrl}}/users/{{userId}}
+
+### Update User
+PUT {{baseUrl}}/users/{{userId}}
+Content-Type: application/json
+
+{
+    "username": "john_updated",
+    "email": "john_updated@example.com"
+}
+
+### Delete User
+DELETE {{baseUrl}}/users/{{userId}}

@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: microservice
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24' # Using 1.24 as a stable version, update when 1.25 is out and supported by actions
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run Unit Tests
+        run: go test -v ./...
+
+      - name: Setup Test Database
+        run: |
+          docker exec ${{ job.services.postgres.id }} psql -U user -d microservice -c "CREATE DATABASE microservice_test;"
+
+      - name: Run Integration Tests
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5434
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DBNAME: microservice_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: go test -v -tags=integration ./tests/integration/...
+
+      - name: Build
+        run: go build -v -o bin/api cmd/api/main.go

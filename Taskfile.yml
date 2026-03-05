@@ -6,6 +6,16 @@ vars:
   BIN_PATH: bin/{{.APP_NAME}}
 
 tasks:
+  install-deps:
+    desc: Install development dependencies
+    cmds:
+      - go install github.com/google/wire/cmd/wire@latest
+      - go install github.com/vektra/mockery/v2@latest
+      - go install github.com/swaggo/swag/cmd/swag@latest
+      - go install github.com/air-verse/air@latest
+      - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+      - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.5
+
   build:
     desc: Build the application
     cmds:
@@ -20,6 +30,28 @@ tasks:
     desc: Generate dependency injection code
     cmds:
       - cd internal/app && wire
+
+  mock:
+    desc: Generate mocks
+    cmds:
+      - mockery
+
+  swagger:
+    desc: Generate swagger documentation
+    cmds:
+      - swag init -g {{.MAIN_PATH}}
+
+  gen:
+    desc: Run all generation tasks (Wire, Mock, Swagger)
+    cmds:
+      - task: wire
+      - task: mock
+      - task: swagger
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
 
   test:
     desc: Run tests
@@ -46,7 +78,22 @@ tasks:
     cmds:
       - go mod tidy
 
-  mock:
-    desc: Generate mocks
+  dev:
+    desc: Run with live reloading (Air)
     cmds:
-      - mockery
+      - air
+
+  migrate-new:
+    desc: Create a new migration
+    cmds:
+      - migrate create -ext sql -dir migrations -seq {{.CLI_ARGS}}
+
+  migrate-up:
+    desc: Run migrations up
+    cmds:
+      - migrate -path migrations -database "postgres://user:password@localhost:5434/microservice?sslmode=disable" up
+
+  migrate-down:
+    desc: Rollback migrations
+    cmds:
+      - migrate -path migrations -database "postgres://user:password@localhost:5434/microservice?sslmode=disable" down 1

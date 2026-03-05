@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/mamochiro/go-microservice-template/internal/config"
 	"github.com/redis/go-redis/v9"
@@ -16,8 +17,11 @@ func NewRedisClient(cfg *config.Config) (*redis.Client, func(), error) {
 		DB:       cfg.Redis.DB,
 	})
 
-	if err := client.Ping(context.Background()).Err(); err != nil {
-		return nil, nil, err
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
 	cleanup := func() {

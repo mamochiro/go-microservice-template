@@ -12,4 +12,5 @@ type UserRepository interface {
 	Update(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id uint) error
 	List(ctx context.Context) ([]entity.User, error)
+	ListPaginated(ctx context.Context, offset, limit int) ([]entity.User, int64, error)
 }

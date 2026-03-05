@@ -77,3 +77,19 @@ func TestUserService_GetUser_CacheHit(t *testing.T) {
 	// Repo should NOT be called
 	mockRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 }
+
+func TestUserService_ListUsersPaginated(t *testing.T) {
+	mockRepo := mocks.NewMockUserRepository(t)
+	mockCache := mocks.NewMockCacheRepository(t)
+	svc := NewUserService(mockRepo, mockCache)
+
+	expectedUsers := []entity.User{{ID: 1, Username: "user1"}}
+
+	mockRepo.On("ListPaginated", mock.Anything, 0, 10).Return(expectedUsers, int64(1), nil)
+
+	users, total, err := svc.ListUsersPaginated(context.Background(), 1, 10)
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Len(t, users, 1)
+}

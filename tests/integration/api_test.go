@@ -15,6 +15,8 @@ import (
 	"github.com/mamochiro/go-microservice-template/internal/app"
 	"github.com/mamochiro/go-microservice-template/internal/config"
 	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
+
+	"github.com/mamochiro/go-microservice-template/internal/transport/http/dto"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -103,11 +105,11 @@ func (s *APITestSuite) TestUserLifecycle() {
 	s.NoError(err)
 	s.Equal(http.StatusOK, resp.StatusCode)
 
-	var users []entity.User
-	err = json.NewDecoder(resp.Body).Decode(&users)
+	var paginatedResp dto.PaginatedUserResponse
+	err = json.NewDecoder(resp.Body).Decode(&paginatedResp)
 	s.NoError(err)
-	s.GreaterOrEqual(len(users), 1)
-
+	s.GreaterOrEqual(paginatedResp.Total, int64(1))
+	s.NotEmpty(paginatedResp.Data)
 	// Delete User
 	req, _ = http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/%d", baseURL, foundUser.ID), nil)
 	resp, err = http.DefaultClient.Do(req)

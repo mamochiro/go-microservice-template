@@ -4,7 +4,8 @@
 package app
 
 import (
-	"github.com/go-chi/chi/v5"
+	"net/http"
+
 	"github.com/google/wire"
 	"github.com/mamochiro/go-microservice-template/internal/config"
 	"github.com/mamochiro/go-microservice-template/internal/domain/service"
@@ -15,7 +16,7 @@ import (
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/router"
 )
 
-func InitializeApp(cfg *config.Config) (*chi.Mux, func(), error) {
+func InitializeApp(cfg *config.Config) (http.Handler, func(), error) {
 	wire.Build(
 		database.NewPostgresDB,
 		cache.NewRedisClient,

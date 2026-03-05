@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,8 +13,25 @@ import (
 
 	"github.com/mamochiro/go-microservice-template/internal/app"
 	"github.com/mamochiro/go-microservice-template/internal/config"
+	"github.com/mamochiro/go-microservice-template/pkg/logger"
+	"github.com/mamochiro/go-microservice-template/pkg/telemetry"
+	"go.uber.org/zap"
 )
 
+// @title           Go Microservice Template API
+// @version         1.0
+// @description     This is a sample microservice server using clean architecture.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /api/v1
 func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
@@ -21,12 +39,21 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Initialize Logger
+	logger.Init(cfg.App.Env)
+
+	// Initialize OpenTelemetry
+	tp, err := telemetry.InitTracer(cfg.App.Name)
+	if err != nil {
+		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+	}
+	defer telemetry.ShutdownTracer(tp)
+
 	// Initialize application using Wire
 	router, cleanup, err := app.InitializeApp(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize application: %v", err)
+		logger.Fatal("Failed to initialize application", zap.Error(err))
 	}
-	defer cleanup()
 
 	// Setup server
 	srv := &http.Server{
@@ -36,9 +63,9 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Starting server on port %s", cfg.App.Port)
+		logger.Info(fmt.Sprintf("Starting server on port %s", cfg.App.Port))
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Listen and serve error: %v", err)
+			logger.Fatal("Listen and serve error", zap.Error(err))
 		}
 	}()
 
@@ -46,15 +73,19 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
 
-	// Create a deadline to wait for
+	logger.Info("Shutting down server...")
+
+	// Create a deadline to wait for active requests to finish
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		logger.Error("Server forced to shutdown", zap.Error(err))
 	}
 
-	log.Println("Server exiting")
+	// Call Wire cleanup (closes DB and Redis) AFTER the server stops accepting requests
+	cleanup()
+
+	logger.Info("Server exited gracefully")
 }

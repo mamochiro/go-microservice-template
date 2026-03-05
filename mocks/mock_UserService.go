@@ -282,6 +282,86 @@ func (_c *MockUserService_ListUsers_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// ListUsersPaginated provides a mock function for the type MockUserService
+func (_mock *MockUserService) ListUsersPaginated(ctx context.Context, page int, limit int) ([]entity.User, int64, error) {
+	ret := _mock.Called(ctx, page, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListUsersPaginated")
+	}
+
+	var r0 []entity.User
+	var r1 int64
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) ([]entity.User, int64, error)); ok {
+		return returnFunc(ctx, page, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) []entity.User); ok {
+		r0 = returnFunc(ctx, page, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int) int64); ok {
+		r1 = returnFunc(ctx, page, limit)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, int, int) error); ok {
+		r2 = returnFunc(ctx, page, limit)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockUserService_ListUsersPaginated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListUsersPaginated'
+type MockUserService_ListUsersPaginated_Call struct {
+	*mock.Call
+}
+
+// ListUsersPaginated is a helper method to define mock.On call
+//   - ctx context.Context
+//   - page int
+//   - limit int
+func (_e *MockUserService_Expecter) ListUsersPaginated(ctx interface{}, page interface{}, limit interface{}) *MockUserService_ListUsersPaginated_Call {
+	return &MockUserService_ListUsersPaginated_Call{Call: _e.mock.On("ListUsersPaginated", ctx, page, limit)}
+}
+
+func (_c *MockUserService_ListUsersPaginated_Call) Run(run func(ctx context.Context, page int, limit int)) *MockUserService_ListUsersPaginated_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserService_ListUsersPaginated_Call) Return(users []entity.User, n int64, err error) *MockUserService_ListUsersPaginated_Call {
+	_c.Call.Return(users, n, err)
+	return _c
+}
+
+func (_c *MockUserService_ListUsersPaginated_Call) RunAndReturn(run func(ctx context.Context, page int, limit int) ([]entity.User, int64, error)) *MockUserService_ListUsersPaginated_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateUser provides a mock function for the type MockUserService
 func (_mock *MockUserService) UpdateUser(ctx context.Context, user *entity.User) error {
 	ret := _mock.Called(ctx, user)

@@ -7,7 +7,6 @@
 package app
 
 import (
-	"github.com/go-chi/chi/v5"
 	"github.com/mamochiro/go-microservice-template/internal/config"
 	"github.com/mamochiro/go-microservice-template/internal/domain/service"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/cache"
@@ -15,27 +14,28 @@ import (
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/repository"
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/handler"
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/router"
+	"net/http"
 )
 
 // Injectors from wire.go:
 
-func InitializeApp(cfg *config.Config) (*chi.Mux, func(), error) {
-	client, cleanup, err := cache.NewRedisClient(cfg)
+func InitializeApp(cfg *config.Config) (http.Handler, func(), error) {
+	db, cleanup, err := database.NewPostgresDB(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	healthHandler := handler.NewHealthHandler(client)
-	db, cleanup2, err := database.NewPostgresDB(cfg)
+	client, cleanup2, err := cache.NewRedisClient(cfg)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
+	healthHandler := handler.NewHealthHandler(db, client)
 	userRepository := repository.NewUserRepository(db)
 	cacheRepository := cache.NewCacheRepository(client)
 	userService := service.NewUserService(userRepository, cacheRepository)
 	userHandler := handler.NewUserHandler(userService)
-	mux := router.NewRouter(healthHandler, userHandler)
-	return mux, func() {
+	httpHandler := router.NewRouter(healthHandler, userHandler)
+	return httpHandler, func() {
 		cleanup2()
 		cleanup()
 	}, nil
