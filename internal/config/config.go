@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"log"
 	"strings"
 
@@ -43,10 +44,9 @@ func LoadConfig() (*Config, error) {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
 			log.Println("Config file not found, using environment variables")
-		} else {
-			return nil, err
 		}
 	}
 

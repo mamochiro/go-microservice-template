@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/mamochiro/go-microservice-template/internal/config"
+	"github.com/redis/go-redis/v9"
 )
 
 func NewRedisClient(cfg *config.Config) (*redis.Client, func(), error) {
@@ -21,7 +21,10 @@ func NewRedisClient(cfg *config.Config) (*redis.Client, func(), error) {
 	}
 
 	cleanup := func() {
-		client.Close()
+		err := client.Close()
+		if err != nil {
+			return
+		}
 		log.Println("Redis connection closed")
 	}
 

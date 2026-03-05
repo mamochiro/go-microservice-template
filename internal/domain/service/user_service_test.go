@@ -2,51 +2,23 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
+	"github.com/mamochiro/go-microservice-template/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// MockUserRepository is a mock implementation of repository.UserRepository
-type MockUserRepository struct {
-	mock.Mock
-}
-
-func (m *MockUserRepository) Create(ctx context.Context, user *entity.User) error {
-	args := m.Called(ctx, user)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) GetByID(ctx context.Context, id uint) (*entity.User, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entity.User), args.Error(1)
-}
-
-func (m *MockUserRepository) Update(ctx context.Context, user *entity.User) error {
-	args := m.Called(ctx, user)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) Delete(ctx context.Context, id uint) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) List(ctx context.Context) ([]entity.User, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]entity.User), args.Error(1)
-}
-
 func TestUserService_CreateUser(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	svc := NewUserService(mockRepo)
+	mockRepo := mocks.NewMockUserRepository(t)
+	mockCache := mocks.NewMockCacheRepository(t)
+	svc := NewUserService(mockRepo, mockCache)
 
-	user := &entity.User{Username: "testuser", Email: "test@example.com"}
+	user := &entity.User{Username: "tester", Email: "test@example.com"}
 
 	// Setup expectation
 	mockRepo.On("Create", mock.Anything, user).Return(nil)
@@ -56,17 +28,25 @@ func TestUserService_CreateUser(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	mockRepo.AssertExpectations(t)
 }
 
-func TestUserService_GetUser(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	svc := NewUserService(mockRepo)
+func TestUserService_GetUser_CacheMiss(t *testing.T) {
+	mockRepo := mocks.NewMockUserRepository(t)
+	mockCache := mocks.NewMockCacheRepository(t)
+	svc := NewUserService(mockRepo, mockCache)
 
 	expectedUser := &entity.User{ID: 1, Username: "testuser"}
+	cacheKey := fmt.Sprintf(userCacheKeyFormat, 1)
 
-	// Setup expectation
+	// 1. Cache Get - Miss
+	mockCache.On("Get", mock.Anything, cacheKey).Return("", fmt.Errorf("not found"))
+
+	// 2. Repo GetByID - Success
 	mockRepo.On("GetByID", mock.Anything, uint(1)).Return(expectedUser, nil)
+
+	// 3. Cache Set - Success
+	userJSON, _ := json.Marshal(expectedUser)
+	mockCache.On("Set", mock.Anything, cacheKey, userJSON, 10*time.Minute).Return(nil)
 
 	// Execute
 	user, err := svc.GetUser(context.Background(), 1)
@@ -74,5 +54,26 @@ func TestUserService_GetUser(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, expectedUser, user)
-	mockRepo.AssertExpectations(t)
+}
+
+func TestUserService_GetUser_CacheHit(t *testing.T) {
+	mockRepo := mocks.NewMockUserRepository(t)
+	mockCache := mocks.NewMockCacheRepository(t)
+	svc := NewUserService(mockRepo, mockCache)
+
+	expectedUser := &entity.User{ID: 1, Username: "testuser"}
+	cacheKey := fmt.Sprintf(userCacheKeyFormat, 1)
+	userJSON, _ := json.Marshal(expectedUser)
+
+	// 1. Cache Get - Hit
+	mockCache.On("Get", mock.Anything, cacheKey).Return(string(userJSON), nil)
+
+	// Execute
+	user, err := svc.GetUser(context.Background(), 1)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUser, user)
+	// Repo should NOT be called
+	mockRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 }

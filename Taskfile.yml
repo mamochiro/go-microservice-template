@@ -26,6 +26,11 @@ tasks:
     cmds:
       - go test -v ./...
 
+  integration-test:
+    desc: Run integration tests
+    cmds:
+      - POSTGRES_DBNAME=microservice_test go test -v -tags=integration ./tests/integration/...
+
   docker-up:
     desc: Start docker-compose
     cmds:
@@ -40,3 +45,8 @@ tasks:
     desc: Run go mod tidy
     cmds:
       - go mod tidy
+
+  mock:
+    desc: Generate mocks
+    cmds:
+      - mockery

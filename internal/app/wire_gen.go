@@ -31,7 +31,8 @@ func InitializeApp(cfg *config.Config) (*chi.Mux, func(), error) {
 		return nil, nil, err
 	}
 	userRepository := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepository)
+	cacheRepository := cache.NewCacheRepository(client)
+	userService := service.NewUserService(userRepository, cacheRepository)
 	userHandler := handler.NewUserHandler(userService)
 	mux := router.NewRouter(healthHandler, userHandler)
 	return mux, func() {
