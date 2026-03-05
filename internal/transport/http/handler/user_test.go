@@ -18,13 +18,10 @@ import (
 )
 
 func TestUserHandler_Create(t *testing.T) {
-	mockSvc := mocks.NewMockUserService(t)
-	h := NewUserHandler(mockSvc)
-
 	tests := []struct {
 		name           string
 		requestBody    dto.CreateUserRequest
-		mockSetup      func()
+		mockSetup      func(m *mocks.MockUserService)
 		expectedStatus int
 	}{
 		{
@@ -34,8 +31,8 @@ func TestUserHandler_Create(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "password123",
 			},
-			mockSetup: func() {
-				mockSvc.On("CreateUser", mock.Anything, mock.AnythingOfType("*entity.User")).Return(nil)
+			mockSetup: func(m *mocks.MockUserService) {
+				m.On("CreateUser", mock.Anything, mock.AnythingOfType("*entity.User")).Return(nil)
 			},
 			expectedStatus: http.StatusCreated,
 		},
@@ -46,8 +43,8 @@ func TestUserHandler_Create(t *testing.T) {
 				Email:    "invalid-email",
 				Password: "pass", // Too short
 			},
-			mockSetup:      func() {},
-			expectedStatus: http.StatusUnprocessableEntity, // apperror.ErrValidation.Code
+			mockSetup:      func(m *mocks.MockUserService) {},
+			expectedStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name: "Service Error",
@@ -56,8 +53,8 @@ func TestUserHandler_Create(t *testing.T) {
 				Email:    "test@example.com",
 				Password: "password123",
 			},
-			mockSetup: func() {
-				mockSvc.On("CreateUser", mock.Anything, mock.AnythingOfType("*entity.User")).
+			mockSetup: func(m *mocks.MockUserService) {
+				m.On("CreateUser", mock.Anything, mock.AnythingOfType("*entity.User")).
 					Return(errors.New("db error"))
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -66,7 +63,9 @@ func TestUserHandler_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.mockSetup()
+			mockSvc := mocks.NewMockUserService(t)
+			h := NewUserHandler(mockSvc)
+			tt.mockSetup(mockSvc)
 
 			body, _ := json.Marshal(tt.requestBody)
 			req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBuffer(body))
@@ -80,43 +79,42 @@ func TestUserHandler_Create(t *testing.T) {
 }
 
 func TestUserHandler_Get(t *testing.T) {
-	mockSvc := mocks.NewMockUserService(t)
-	h := NewUserHandler(mockSvc)
-
 	tests := []struct {
 		name           string
 		userID         string
-		mockSetup      func()
+		mockSetup      func(m *mocks.MockUserService)
 		expectedStatus int
 	}{
 		{
 			name:   "Success",
 			userID: "1",
-			mockSetup: func() {
-				mockSvc.On("GetUser", mock.Anything, uint(1)).Return(&entity.User{ID: 1, Username: "user1"}, nil)
+			mockSetup: func(m *mocks.MockUserService) {
+				m.On("GetUser", mock.Anything, uint(1)).Return(&entity.User{ID: 1, Username: "user1"}, nil)
 			},
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:   "Invalid ID",
 			userID: "abc",
-			mockSetup: func() {
+			mockSetup: func(m *mocks.MockUserService) {
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:   "Not Found",
 			userID: "99",
-			mockSetup: func() {
-				mockSvc.On("GetUser", mock.Anything, uint(99)).Return(nil, errors.New("user not found"))
+			mockSetup: func(m *mocks.MockUserService) {
+				m.On("GetUser", mock.Anything, uint(99)).Return(nil, errors.New("user not found"))
 			},
-			expectedStatus: http.StatusInternalServerError, // Default error mapping
+			expectedStatus: http.StatusInternalServerError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.mockSetup()
+			mockSvc := mocks.NewMockUserService(t)
+			h := NewUserHandler(mockSvc)
+			tt.mockSetup(mockSvc)
 
 			req := httptest.NewRequest(http.MethodGet, "/users/"+tt.userID, nil)
 
