@@ -40,7 +40,7 @@ func NewUserHandler(svc service.UserService) *UserHandler {
 }
 
 // Create handles the user creation request.
-// @Summary      Create a new user
+// @Summary      Create a new user (Signup)
 // @Description  Create a new user with the provided details
 // @Tags         users
 // @Accept       json
@@ -50,7 +50,7 @@ func NewUserHandler(svc service.UserService) *UserHandler {
 // @Failure      400   {string}  string "Invalid request body"
 // @Failure      422   {string}  string "Validation failed"
 // @Failure      500   {string}  string "Internal server error"
-// @Router       /users [post]
+// @Router       /signup [post]
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -76,7 +76,9 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	resp := toUserResponse(user)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		return
+	}
 }
 
 // Get handles the request to retrieve a user by ID.
@@ -89,6 +91,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {string}  string "Invalid ID"
 // @Failure      404  {string}  string "User not found"
 // @Router       /users/{id} [get]
+// @Security     Bearer
 func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -103,7 +106,9 @@ func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(toUserResponse(user))
+	if err := json.NewEncoder(w).Encode(toUserResponse(user)); err != nil {
+		return
+	}
 }
 
 // List handles the request to retrieve users with pagination.
@@ -115,6 +120,7 @@ func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query     int  false  "Items per page (default 10)"
 // @Success      200    {object}  dto.PaginatedUserResponse
 // @Failure      500    {string}  string "Internal server error"
+// @Security     Bearer
 // @Router       /users [get]
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -148,9 +154,24 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		TotalPages: totalPages,
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		return
+	}
 }
 
+// @Summary      Update a user
+// @Description  Update a user's details by their ID
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Param        id    path      int  true  "User ID"
+// @Param        user  body      dto.UpdateUserRequest  true  "Updated user object"
+// @Success      200   {object}  dto.UserResponse
+// @Failure      400   {string}  string "Invalid ID"
+// @Failure      422   {string}  string "Validation failed"
+// @Failure      500   {string}  string "Internal server error"
+// @Security     Bearer
+// @Router       /users/{id} [put]
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -187,9 +208,20 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Fetch updated user to return full object? Or just return what we have.
 	// Let's assume UpdateUser updates the passed pointer or we can fetch again.
 	// For now, return what we have.
-	json.NewEncoder(w).Encode(toUserResponse(user))
+	if err := json.NewEncoder(w).Encode(toUserResponse(user)); err != nil {
+		return
+	}
 }
 
+// @Summary      Delete a user
+// @Description  Delete a user's record by their ID
+// @Tags         users
+// @Param        id   path      int  true  "User ID"
+// @Success      204  {string}  string "No Content"
+// @Failure      400  {string}  string "Invalid ID"
+// @Failure      500  {string}  string "Internal server error"
+// @Security     Bearer
+// @Router       /users/{id} [delete]
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

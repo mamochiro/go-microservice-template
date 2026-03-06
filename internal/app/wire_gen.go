@@ -30,11 +30,14 @@ func InitializeApp(cfg *config.Config) (http.Handler, func(), error) {
 		return nil, nil, err
 	}
 	healthHandler := handler.NewHealthHandler(db, client)
-	userRepository := repository.NewUserRepository(db)
+	userRepo := repository.NewUserRepository(db)
 	cacheRepository := cache.NewCacheRepository(client)
-	userService := service.NewUserService(userRepository, cacheRepository)
+	userRepository := repository.NewCachedUserRepository(userRepo, cacheRepository)
+	userService := service.NewUserService(userRepository)
 	userHandler := handler.NewUserHandler(userService)
-	httpHandler := router.NewRouter(healthHandler, userHandler)
+	authService := service.NewAuthService(userRepository, cfg)
+	authHandler := handler.NewAuthHandler(authService)
+	httpHandler := router.NewRouter(cfg, healthHandler, userHandler, authHandler)
 	return httpHandler, func() {
 		cleanup2()
 		cleanup()

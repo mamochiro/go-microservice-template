@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 	_ "github.com/mamochiro/go-microservice-template/docs"
+	"github.com/mamochiro/go-microservice-template/internal/config"
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/handler"
 	customMiddleware "github.com/mamochiro/go-microservice-template/internal/transport/http/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -16,7 +17,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-func NewRouter(healthHandler *handler.HealthHandler, userHandler *handler.UserHandler) http.Handler {
+func NewRouter(cfg *config.Config, healthHandler *handler.HealthHandler, userHandler *handler.UserHandler, authHandler *handler.AuthHandler) http.Handler {
 	r := chi.NewRouter()
 
 	// Basic Middlewares
@@ -24,7 +25,10 @@ func NewRouter(healthHandler *handler.HealthHandler, userHandler *handler.UserHa
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 
-	// Rate Limiting: 100 requests per minute per IP
+	// Security: Secure Headers
+	r.Use(customMiddleware.SecureHeaders(cfg.App.Env))
+
+	// Rate Limiting
 	r.Use(httprate.LimitByIP(100, 1*time.Minute))
 
 	// Security: CORS
@@ -42,24 +46,29 @@ func NewRouter(healthHandler *handler.HealthHandler, userHandler *handler.UserHa
 	r.Use(customMiddleware.Metrics)
 	r.Use(customMiddleware.Logger)
 
-	// Routes
+	// Public Routes
 	r.Get("/health", healthHandler.Check)
 	r.Handle("/metrics", promhttp.Handler())
-
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 	))
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Route("/users", func(r chi.Router) {
-			r.Post("/", userHandler.Create)
-			r.Get("/", userHandler.List)
-			r.Get("/{id}", userHandler.Get)
-			r.Put("/{id}", userHandler.Update)
-			r.Delete("/{id}", userHandler.Delete)
+		r.Post("/login", authHandler.Login)
+		r.Post("/signup", userHandler.Create) // Use /signup for public creation
+
+		// Protected Routes
+		r.Group(func(r chi.Router) {
+			r.Use(customMiddleware.Auth(cfg.App.JWTSecret))
+
+			r.Route("/users", func(r chi.Router) {
+				r.Get("/", userHandler.List)
+				r.Get("/{id}", userHandler.Get)
+				r.Put("/{id}", userHandler.Update)
+				r.Delete("/{id}", userHandler.Delete)
+			})
 		})
 	})
 
-	// Wrap entire router with OTel tracing
 	return otelhttp.NewHandler(r, "http-server")
 }

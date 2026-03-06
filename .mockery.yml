@@ -1,7 +1,7 @@
 all: true
 dir: 'mocks'
 filename: 'mock_{{.InterfaceName}}.go'
-pkgname: 'mocks'
+outpkg: 'mocks'
 packages:
   github.com/mamochiro/go-microservice-template/internal/domain/repository:
   github.com/mamochiro/go-microservice-template/internal/domain/service:

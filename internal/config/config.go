@@ -16,9 +16,10 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Name string
-	Port string
-	Env  string
+	Name      string
+	Port      string
+	Env       string
+	JWTSecret string
 }
 
 type PostgresConfig struct {

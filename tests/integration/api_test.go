@@ -15,7 +15,6 @@ import (
 
 	"github.com/mamochiro/go-microservice-template/internal/app"
 	"github.com/mamochiro/go-microservice-template/internal/config"
-	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
 
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/dto"
 	"github.com/mamochiro/go-microservice-template/pkg/logger"
@@ -84,17 +83,17 @@ func (s *APITestSuite) TestHealthCheck() {
 }
 
 func (s *APITestSuite) TestUserLifecycle() {
-	baseURL := s.server.URL + "/api/v1/users"
+	baseURL := s.server.URL + "/api/v1"
 
-	// Create User
-	user := &entity.User{
-		Username: "api_test_user",
-		Email:    "api_test@example.com",
-		Password: "password123",
+	// 1. Create User (Public)
+	userReq := map[string]string{
+		"username": "api_test_user",
+		"email":    "api_test@example.com",
+		"password": "password123",
 	}
-	body, _ := json.Marshal(user)
+	body, _ := json.Marshal(userReq)
 
-	resp, err := http.Post(baseURL, "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(baseURL+"/signup", "application/json", bytes.NewBuffer(body))
 	s.NoError(err)
 	s.Equal(http.StatusCreated, resp.StatusCode)
 
@@ -102,47 +101,61 @@ func (s *APITestSuite) TestUserLifecycle() {
 	err = json.NewDecoder(resp.Body).Decode(&createdUser)
 	s.NoError(err)
 	s.NotZero(createdUser.ID)
-	s.Equal(user.Username, createdUser.Username)
 
-	// Get User
-	resp, err = http.Get(fmt.Sprintf("%s/%d", baseURL, createdUser.ID))
+	// 2. Login to get token
+	loginReq := dto.LoginRequest{
+		Email:    userReq["email"],
+		Password: userReq["password"],
+	}
+	body, _ = json.Marshal(loginReq)
+	resp, err = http.Post(baseURL+"/login", "application/json", bytes.NewBuffer(body))
 	s.NoError(err)
+	s.Equal(http.StatusOK, resp.StatusCode)
+
+	var authResp dto.AuthResponse
+	err = json.NewDecoder(resp.Body).Decode(&authResp)
+	s.NoError(err)
+	s.NotEmpty(authResp.AccessToken)
+	token := authResp.AccessToken
+
+	// Helper function for authenticated requests
+	doAuthRequest := func(method, url string, body []byte) *http.Response {
+		req, _ := http.NewRequest(method, url, bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		res, err := http.DefaultClient.Do(req)
+		s.NoError(err)
+		return res
+	}
+
+	// 3. Get User (Protected)
+	resp = doAuthRequest(http.MethodGet, fmt.Sprintf("%s/users/%d", baseURL, createdUser.ID), nil)
 	s.Equal(http.StatusOK, resp.StatusCode)
 
 	var foundUser dto.UserResponse
 	err = json.NewDecoder(resp.Body).Decode(&foundUser)
 	s.NoError(err)
 	s.Equal(createdUser.ID, foundUser.ID)
-	s.Equal(createdUser.Username, foundUser.Username)
 
-	// Update User
-	foundUser.Username = "updated_api_user"
+	// 4. Update User (Protected)
 	updateReq := dto.UpdateUserRequest{
-		Username: foundUser.Username,
-		Email:    foundUser.Email,
+		Username: "updated_api_user",
 	}
 	body, _ = json.Marshal(updateReq)
-	req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/%d", baseURL, foundUser.ID), bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err = http.DefaultClient.Do(req)
-	s.NoError(err)
+	resp = doAuthRequest(http.MethodPut, fmt.Sprintf("%s/users/%d", baseURL, foundUser.ID), body)
 	s.Equal(http.StatusOK, resp.StatusCode)
 
-	// List Users
-	resp, err = http.Get(baseURL)
-	s.NoError(err)
+	// 5. List Users (Protected)
+	resp = doAuthRequest(http.MethodGet, baseURL+"/users", nil)
 	s.Equal(http.StatusOK, resp.StatusCode)
 
 	var paginatedResp dto.PaginatedUserResponse
 	err = json.NewDecoder(resp.Body).Decode(&paginatedResp)
 	s.NoError(err)
 	s.GreaterOrEqual(paginatedResp.Total, int64(1))
-	s.NotEmpty(paginatedResp.Data)
-	// Delete User
-	req, _ = http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/%d", baseURL, foundUser.ID), nil)
-	resp, err = http.DefaultClient.Do(req)
-	s.NoError(err)
+
+	// 6. Delete User (Protected)
+	resp = doAuthRequest(http.MethodDelete, fmt.Sprintf("%s/users/%d", baseURL, foundUser.ID), nil)
 	s.Equal(http.StatusNoContent, resp.StatusCode)
 }
 

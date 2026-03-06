@@ -22,9 +22,12 @@ func InitializeApp(cfg *config.Config) (http.Handler, func(), error) {
 		cache.NewRedisClient,
 		cache.NewCacheRepository,
 		repository.NewUserRepository,
+		repository.NewCachedUserRepository,
 		service.NewUserService,
+		service.NewAuthService,
 		handler.NewHealthHandler,
 		handler.NewUserHandler,
+		handler.NewAuthHandler,
 		router.NewRouter,
 	)
 	return nil, nil, nil

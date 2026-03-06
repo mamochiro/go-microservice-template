@@ -14,7 +14,22 @@ tasks:
       - go install github.com/swaggo/swag/cmd/swag@latest
       - go install github.com/air-verse/air@latest
       - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-      - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.5
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
+      - go mod download
+
+  setup:
+    desc: Initial project setup (env, dependencies, infrastructure, and test db)
+    cmds:
+      - test -f .env || cp .env.example .env
+      - task: install-deps
+      - task: docker-up
+      - echo "Waiting for database to be ready..."
+      - sleep 5
+      - docker exec go-microservice-template-postgres-1 psql -U user -d postgres -c "CREATE DATABASE microservice_test;" || true
+      - task: migrate-up
+      - task: gen
+      - task: build
+    silent: false
 
   build:
     desc: Build the application
@@ -29,17 +44,17 @@ tasks:
   wire:
     desc: Generate dependency injection code
     cmds:
-      - cd internal/app && wire
+      - cd internal/app && $(go env GOPATH)/bin/wire
 
   mock:
     desc: Generate mocks
     cmds:
-      - mockery
+      - $(go env GOPATH)/bin/mockery
 
   swagger:
     desc: Generate swagger documentation
     cmds:
-      - swag init -g {{.MAIN_PATH}}
+      - $(go env GOPATH)/bin/swag init -g {{.MAIN_PATH}}
 
   gen:
     desc: Run all generation tasks (Wire, Mock, Swagger)
@@ -51,7 +66,7 @@ tasks:
   lint:
     desc: Run golangci-lint
     cmds:
-      - golangci-lint run ./...
+      - $(go env GOPATH)/bin/golangci-lint run ./...
 
   test:
     desc: Run tests
@@ -81,19 +96,19 @@ tasks:
   dev:
     desc: Run with live reloading (Air)
     cmds:
-      - air
+      - $(go env GOPATH)/bin/air
 
   migrate-new:
     desc: Create a new migration
     cmds:
-      - migrate create -ext sql -dir migrations -seq {{.CLI_ARGS}}
+      - $(go env GOPATH)/bin/migrate create -ext sql -dir migrations -seq {{.CLI_ARGS}}
 
   migrate-up:
     desc: Run migrations up
     cmds:
-      - migrate -path migrations -database "postgres://user:password@localhost:5434/microservice?sslmode=disable" up
+      - $(go env GOPATH)/bin/migrate -path migrations -database "postgres://user:password@localhost:5434/microservice?sslmode=disable" up
 
   migrate-down:
     desc: Rollback migrations
     cmds:
-      - migrate -path migrations -database "postgres://user:password@localhost:5434/microservice?sslmode=disable" down 1
+      - $(go env GOPATH)/bin/migrate -path migrations -database "postgres://user:password@localhost:5434/microservice?sslmode=disable" down 1

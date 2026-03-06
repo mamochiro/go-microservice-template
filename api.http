@@ -6,9 +6,23 @@ GET http://localhost:3003/health
 ### Metrics
 GET http://localhost:3003/metrics
 
-### Create User
+### User Login
+# @name login
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+    "email": "john@example.com",
+    "password": "securepassword123"
+}
+
+### Access Token from Login
+@authToken = {{login.response.body.access_token}}
+
+### Create User (Needs Auth)
 # @name createUser
 POST {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -17,15 +31,18 @@ Content-Type: application/json
     "password": "securepassword123"
 }
 
-### List Users
+### List Users (Needs Auth)
 GET {{baseUrl}}/users?page=1&limit=10
+Authorization: Bearer {{authToken}}
 
-### Get User by ID
+### Get User by ID (Needs Auth)
 @userId = {{createUser.response.body.id}}
 GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
 
-### Update User
+### Update User (Needs Auth)
 PUT {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
@@ -33,5 +50,6 @@ Content-Type: application/json
     "email": "john_updated@example.com"
 }
 
-### Delete User
+### Delete User (Needs Auth)
 DELETE {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}

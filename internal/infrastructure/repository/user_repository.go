@@ -4,28 +4,27 @@ import (
 	"context"
 
 	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
-	"github.com/mamochiro/go-microservice-template/internal/domain/repository"
 	"go.opentelemetry.io/otel"
 	"gorm.io/gorm"
 )
 
 var tracer = otel.Tracer("user-repository")
 
-type userRepo struct {
+type UserRepo struct {
 	db *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) repository.UserRepository {
-	return &userRepo{db: db}
+func NewUserRepository(db *gorm.DB) *UserRepo {
+	return &UserRepo{db: db}
 }
 
-func (r *userRepo) Create(ctx context.Context, user *entity.User) error {
+func (r *UserRepo) Create(ctx context.Context, user *entity.User) error {
 	ctx, span := tracer.Start(ctx, "UserRepository.Create")
 	defer span.End()
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *userRepo) GetByID(ctx context.Context, id uint) (*entity.User, error) {
+func (r *UserRepo) GetByID(ctx context.Context, id uint) (*entity.User, error) {
 	ctx, span := tracer.Start(ctx, "UserRepository.GetByID")
 	defer span.End()
 
@@ -36,19 +35,30 @@ func (r *userRepo) GetByID(ctx context.Context, id uint) (*entity.User, error) {
 	return &user, nil
 }
 
-func (r *userRepo) Update(ctx context.Context, user *entity.User) error {
+func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+	ctx, span := tracer.Start(ctx, "UserRepository.GetByEmail")
+	defer span.End()
+
+	var user entity.User
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *UserRepo) Update(ctx context.Context, user *entity.User) error {
 	ctx, span := tracer.Start(ctx, "UserRepository.Update")
 	defer span.End()
 	return r.db.WithContext(ctx).Save(user).Error
 }
 
-func (r *userRepo) Delete(ctx context.Context, id uint) error {
+func (r *UserRepo) Delete(ctx context.Context, id uint) error {
 	ctx, span := tracer.Start(ctx, "UserRepository.Delete")
 	defer span.End()
 	return r.db.WithContext(ctx).Delete(&entity.User{}, id).Error
 }
 
-func (r *userRepo) List(ctx context.Context) ([]entity.User, error) {
+func (r *UserRepo) List(ctx context.Context) ([]entity.User, error) {
 	ctx, span := tracer.Start(ctx, "UserRepository.List")
 	defer span.End()
 
@@ -59,7 +69,7 @@ func (r *userRepo) List(ctx context.Context) ([]entity.User, error) {
 	return users, nil
 }
 
-func (r *userRepo) ListPaginated(ctx context.Context, offset, limit int) ([]entity.User, int64, error) {
+func (r *UserRepo) ListPaginated(ctx context.Context, offset, limit int) ([]entity.User, int64, error) {
 	ctx, span := tracer.Start(ctx, "UserRepository.ListPaginated")
 	defer span.End()
 

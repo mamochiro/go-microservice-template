@@ -2,13 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"time"
 
 	"github.com/mamochiro/go-microservice-template/internal/domain/entity"
 	"github.com/mamochiro/go-microservice-template/internal/domain/repository"
 	"go.opentelemetry.io/otel"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
@@ -20,78 +18,45 @@ type UserService interface {
 	ListUsersPaginated(ctx context.Context, page, limit int) ([]entity.User, int64, error)
 }
 
-const userCacheKeyFormat = "user:%d"
-
 var tracer = otel.Tracer("user-service")
 
 type userService struct {
-	repo  repository.UserRepository
-	cache repository.CacheRepository
+	repo repository.UserRepository
 }
 
-func NewUserService(repo repository.UserRepository, cache repository.CacheRepository) UserService {
-	return &userService{repo: repo, cache: cache}
+func NewUserService(repo repository.UserRepository) UserService {
+	return &userService{repo: repo}
 }
 
 func (s *userService) CreateUser(ctx context.Context, user *entity.User) error {
 	ctx, span := tracer.Start(ctx, "UserService.CreateUser")
 	defer span.End()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.Password = string(hashedPassword)
+
 	return s.repo.Create(ctx, user)
 }
 
 func (s *userService) GetUser(ctx context.Context, id uint) (*entity.User, error) {
 	ctx, span := tracer.Start(ctx, "UserService.GetUser")
 	defer span.End()
-
-	cacheKey := fmt.Sprintf(userCacheKeyFormat, id)
-
-	// 1. Try to get from cache
-	val, err := s.cache.Get(ctx, cacheKey)
-	if err == nil {
-		var user entity.User
-		if err := json.Unmarshal([]byte(val), &user); err == nil {
-			span.AddEvent("cache hit")
-			return &user, nil
-		}
-	}
-
-	span.AddEvent("cache miss")
-
-	// 2. Fallback to DB
-	user, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// 3. Save to cache for next time (expires in 10 minutes)
-	userJSON, _ := json.Marshal(user)
-	_ = s.cache.Set(ctx, cacheKey, userJSON, 10*time.Minute)
-
-	return user, nil
+	return s.repo.GetByID(ctx, id)
 }
 
 func (s *userService) UpdateUser(ctx context.Context, user *entity.User) error {
 	ctx, span := tracer.Start(ctx, "UserService.UpdateUser")
 	defer span.End()
-
-	if err := s.repo.Update(ctx, user); err != nil {
-		return err
-	}
-	// Invalidate cache
-	_ = s.cache.Delete(ctx, fmt.Sprintf(userCacheKeyFormat, user.ID))
-	return nil
+	return s.repo.Update(ctx, user)
 }
 
 func (s *userService) DeleteUser(ctx context.Context, id uint) error {
 	ctx, span := tracer.Start(ctx, "UserService.DeleteUser")
 	defer span.End()
-
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
-	}
-	// Invalidate cache
-	_ = s.cache.Delete(ctx, fmt.Sprintf(userCacheKeyFormat, id))
-	return nil
+	return s.repo.Delete(ctx, id)
 }
 
 func (s *userService) ListUsers(ctx context.Context) ([]entity.User, error) {
