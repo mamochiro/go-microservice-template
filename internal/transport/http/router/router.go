@@ -49,9 +49,12 @@ func NewRouter(cfg *config.Config, healthHandler *handler.HealthHandler, userHan
 	// Public Routes
 	r.Get("/health", healthHandler.Check)
 	r.Handle("/metrics", promhttp.Handler())
-	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("/swagger/doc.json"),
-	))
+
+	// Swagger Documentation
+	r.Get("/swagger", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/swagger/index.html", http.StatusMovedPermanently)
+	})
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/login", authHandler.Login)
