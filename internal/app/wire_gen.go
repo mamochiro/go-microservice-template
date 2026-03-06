@@ -12,8 +12,10 @@ import (
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/cache"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/database"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/repository"
-	"github.com/mamochiro/go-microservice-template/internal/transport/http/handler"
+	"github.com/mamochiro/go-microservice-template/internal/transport/http/auth"
+	"github.com/mamochiro/go-microservice-template/internal/transport/http/health"
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/router"
+	"github.com/mamochiro/go-microservice-template/internal/transport/http/user"
 	"net/http"
 )
 
@@ -29,15 +31,15 @@ func InitializeApp(cfg *config.Config) (http.Handler, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	healthHandler := handler.NewHealthHandler(db, client)
+	handler := health.NewHandler(db, client)
 	userRepo := repository.NewUserRepository(db)
 	cacheRepository := cache.NewCacheRepository(client)
 	userRepository := repository.NewCachedUserRepository(userRepo, cacheRepository)
 	userService := service.NewUserService(userRepository)
-	userHandler := handler.NewUserHandler(userService)
-	authService := service.NewAuthService(userRepository, cfg)
-	authHandler := handler.NewAuthHandler(authService)
-	httpHandler := router.NewRouter(cfg, healthHandler, userHandler, authHandler)
+	userHandler := user.NewHandler(userService)
+	authService := service.NewAuthService(userRepository, cacheRepository, cfg)
+	authHandler := auth.NewHandler(authService)
+	httpHandler := router.NewRouter(cfg, handler, userHandler, authHandler)
 	return httpHandler, func() {
 		cleanup2()
 		cleanup()
