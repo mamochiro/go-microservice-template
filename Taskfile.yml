@@ -16,6 +16,7 @@ tasks:
       - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
       - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
       - go mod download
+      - cd web && bun install
 
   setup:
     desc: Initial project setup (env, dependencies, infrastructure, and test db)
@@ -32,12 +33,23 @@ tasks:
     silent: false
 
   build:
-    desc: Build the application
+    desc: Build the application (API and Web)
+    cmds:
+      - task: build-api
+      - task: build-web
+
+  build-api:
+    desc: Build the Go API
     cmds:
       - go build -o {{.BIN_PATH}} {{.MAIN_PATH}}
 
+  build-web:
+    desc: Build the React frontend
+    cmds:
+      - cd web && bun run build
+
   run:
-    desc: Run the application
+    desc: Run the Go API
     cmds:
       - go run {{.MAIN_PATH}}
 
@@ -64,14 +76,36 @@ tasks:
       - task: swagger
 
   lint:
+    desc: Run linters (API and Web)
+    cmds:
+      - task: lint-api
+      - task: lint-web
+
+  lint-api:
     desc: Run golangci-lint
     cmds:
       - $(go env GOPATH)/bin/golangci-lint run ./...
 
+  lint-web:
+    desc: Run eslint for web
+    cmds:
+      - cd web && bun run lint
+
   test:
-    desc: Run tests
+    desc: Run all tests (API and Web)
+    cmds:
+      - task: test-api
+      - task: test-web
+
+  test-api:
+    desc: Run Go unit tests
     cmds:
       - go test -v ./...
+
+  test-web:
+    desc: Run web tests (if any)
+    cmds:
+      - cd web && bun test
 
   integration-test:
     desc: Run integration tests
@@ -107,9 +141,20 @@ tasks:
       - go mod tidy
 
   dev:
-    desc: Run with live reloading (Air)
+    desc: Run both API and Web in development mode
+    cmds:
+      - task: dev-api
+      - task: dev-web
+
+  dev-api:
+    desc: Run API with live reloading (Air)
     cmds:
       - $(go env GOPATH)/bin/air
+
+  dev-web:
+    desc: Run Web frontend with Vite
+    cmds:
+      - cd web && bun run dev
 
   migrate-new:
     desc: Create a new migration

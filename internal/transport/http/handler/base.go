@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -28,13 +29,33 @@ func RespondError(w http.ResponseWriter, err error) {
 	}
 
 	// Handle validator.ValidationErrors
-	if _, ok := err.(validator.ValidationErrors); ok {
-		RespondJSON(w, apperror.ErrValidation.Code, map[string]string{"error": err.Error()})
+	if ve, ok := err.(validator.ValidationErrors); ok {
+		msg := formatValidationError(ve)
+		RespondJSON(w, apperror.ErrValidation.Code, map[string]string{"error": msg})
 		return
 	}
 
 	appErr := apperror.Convert(err)
 	RespondJSON(w, appErr.Code, map[string]string{"error": appErr.Message})
+}
+
+// formatValidationError converts validator errors into human-readable messages.
+func formatValidationError(ve validator.ValidationErrors) string {
+	err := ve[0] // Take the first error
+	switch err.Tag() {
+	case "required":
+		return fmt.Sprintf("%s is required", err.Field())
+	case "email":
+		return "Invalid email format"
+	case "min":
+		return fmt.Sprintf("%s must be at least %s characters", err.Field(), err.Param())
+	case "max":
+		return fmt.Sprintf("%s must be at most %s characters", err.Field(), err.Param())
+	case "nospaces":
+		return fmt.Sprintf("%s cannot contain spaces", err.Field())
+	default:
+		return fmt.Sprintf("Invalid value for %s", err.Field())
+	}
 }
 
 // DecodeAndValidate decodes the request body and validates the struct.
