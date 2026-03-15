@@ -41,10 +41,13 @@ func Register(r chi.Router, h *Handler, jwtSecret string) {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(jwtSecret))
 		r.Route("/users", func(r chi.Router) {
-			r.Get("/", h.List)
+			// Only Admins can list or delete users
+			r.With(middleware.HasRole(entity.RoleAdmin)).Get("/", h.List)
+			r.With(middleware.HasRole(entity.RoleAdmin)).Delete("/{id}", h.Delete)
+
+			// Both User and Admin can get or update (further checks for "self" could be added)
 			r.Get("/{id}", h.Get)
 			r.Put("/{id}", h.Update)
-			r.Delete("/{id}", h.Delete)
 		})
 	})
 }
@@ -97,9 +100,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userResps := make([]dto.UserResponse, len(users))
+	userRests := make([]dto.UserResponse, len(users))
 	for i, u := range users {
-		userResps[i] = handler.ToUserResponse(&u)
+		userRests[i] = handler.ToUserResponse(&u)
 	}
 
 	if limit < 1 {
@@ -111,7 +114,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler.RespondJSON(w, http.StatusOK, dto.PaginatedUserResponse{
-		Data:       userResps,
+		Data:       userRests,
 		Total:      total,
 		Page:       page,
 		Limit:      limit,

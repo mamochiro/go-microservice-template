@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -29,7 +30,8 @@ func RespondError(w http.ResponseWriter, err error) {
 	}
 
 	// Handle validator.ValidationErrors
-	if ve, ok := err.(validator.ValidationErrors); ok {
+	var ve validator.ValidationErrors
+	if errors.As(err, &ve) {
 		msg := formatValidationError(ve)
 		RespondJSON(w, apperror.ErrValidation.Code, map[string]string{"error": msg})
 		return
@@ -75,6 +77,7 @@ func ToUserResponse(user *entity.User) dto.UserResponse {
 		ID:        user.ID,
 		Username:  user.Username,
 		Email:     user.Email,
+		Role:      user.Role,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}

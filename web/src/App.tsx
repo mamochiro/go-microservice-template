@@ -4,7 +4,10 @@ import { useAuth } from './contexts/AuthContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './features/auth/Login';
 import Signup from './features/auth/Signup';
+import ForgotPassword from './features/auth/ForgotPassword';
+import ResetPassword from './features/auth/ResetPassword';
 import UserList from './features/users/UserList';
+import Settings from './features/settings/Settings';
 import HealthStatus from './features/health/HealthStatus';
 
 const DashboardHome = () => (
@@ -40,6 +43,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         <Route path="/" element={
           <ProtectedRoute>
@@ -48,7 +53,7 @@ function App() {
         }>
           <Route index element={<DashboardHome />} />
           <Route path="users" element={<UserList />} />
-          <Route path="settings" element={<div>Settings Placeholder</div>} />
+          <Route path="settings" element={<Settings />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />

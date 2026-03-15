@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock, Activity, Loader2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../api/client';
@@ -10,15 +10,33 @@ import axios from 'axios';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+
+    // Check for success message from signup
+    const state = location.state as { message?: string } | null;
+    if (state?.message) {
+      setSuccessMessage(state.message);
+      // Clear state so message doesn't persist on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setIsLoading(true);
 
     try {
@@ -52,6 +70,20 @@ const Login: React.FC = () => {
           <p>Please enter your details to sign in</p>
         </div>
 
+        {successMessage && (
+          <div style={{ 
+            backgroundColor: '#f0fdf4', 
+            border: '1px solid #bbf7d0', 
+            color: '#166534',
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.875rem',
+            marginBottom: '1.5rem'
+          }}>
+            {successMessage}
+          </div>
+        )}
+
         {error && (
           <div className={styles.errorAlert}>
             {error}
@@ -75,7 +107,12 @@ const Login: React.FC = () => {
           </div>
 
           <div className={styles.inputGroup}>
-            <label htmlFor="password">Password</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label htmlFor="password">Password</label>
+              <Link to="/forgot-password" style={{ fontSize: '0.75rem', color: 'var(--color-primary)', fontWeight: 500 }}>
+                Forgot password?
+              </Link>
+            </div>
             <div className={styles.inputWrapper}>
               <Lock size={18} className={styles.inputIcon} />
               <input
@@ -89,11 +126,24 @@ const Login: React.FC = () => {
             </div>
           </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input 
+              id="remember" 
+              type="checkbox" 
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              style={{ width: 'auto', cursor: 'pointer' }}
+            />
+            <label htmlFor="remember" style={{ fontSize: '0.875rem', color: 'var(--color-text-soft)', cursor: 'pointer', fontWeight: 400 }}>
+              Remember me for 30 days
+            </label>
+          </div>
+
           <button 
             type="submit" 
             className="btn-primary" 
             disabled={isLoading}
-            style={{ width: '100%', marginTop: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+            style={{ width: '100%', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
           >
             {isLoading ? (
               <>
@@ -110,7 +160,7 @@ const Login: React.FC = () => {
         </form>
 
         <div className={styles.footer}>
-          <p>Don't have an account? <a href="/signup">Sign up</a></p>
+          <p>Don't have an account? <Link to="/signup">Sign up</Link></p>
         </div>
       </div>
     </div>

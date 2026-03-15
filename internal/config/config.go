@@ -13,6 +13,12 @@ type Config struct {
 	App      AppConfig
 	Postgres PostgresConfig
 	Redis    RedisConfig
+	Email    EmailConfig
+}
+
+type EmailConfig struct {
+	ApiKey string
+	From   string
 }
 
 type AppConfig struct {

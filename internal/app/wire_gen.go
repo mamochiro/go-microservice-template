@@ -11,6 +11,7 @@ import (
 	"github.com/mamochiro/go-microservice-template/internal/domain/service"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/cache"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/database"
+	"github.com/mamochiro/go-microservice-template/internal/infrastructure/email"
 	"github.com/mamochiro/go-microservice-template/internal/infrastructure/repository"
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/auth"
 	"github.com/mamochiro/go-microservice-template/internal/transport/http/health"
@@ -37,7 +38,8 @@ func InitializeApp(cfg *config.Config) (http.Handler, func(), error) {
 	userRepository := repository.NewCachedUserRepository(userRepo, cacheRepository)
 	userService := service.NewUserService(userRepository)
 	userHandler := user.NewHandler(userService)
-	authService := service.NewAuthService(userRepository, cacheRepository, cfg)
+	emailService := email.NewResendService(cfg)
+	authService := service.NewAuthService(userRepository, cacheRepository, emailService, cfg)
 	authHandler := auth.NewHandler(authService)
 	httpHandler := router.NewRouter(cfg, handler, userHandler, authHandler)
 	return httpHandler, func() {

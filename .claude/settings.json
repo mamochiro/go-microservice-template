@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(task *)",
+      "Bash(go test *)",
+      "Bash(go build *)",
+      "Bash(go run *)",
+      "Bash(go mod *)",
+      "Bash(cd web && bun *)",
+      "Bash(docker-compose *)",
+      "Bash(git *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)"
+    ]
+  }
+}

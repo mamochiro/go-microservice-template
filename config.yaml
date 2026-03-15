@@ -17,3 +17,6 @@ redis:
   password: ""
   db: 0
 
+email:
+  from: "onboarding@resend.dev"
+

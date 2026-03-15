@@ -60,3 +60,33 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		User:         handler.ToUserResponse(user),
 	})
 }
+
+func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req dto.ForgotPasswordRequest
+	if err := handler.DecodeAndValidate(r, h.validate, &req); err != nil {
+		handler.RespondError(w, err)
+		return
+	}
+
+	if err := h.svc.ForgotPassword(r.Context(), req.Email); err != nil {
+		handler.RespondError(w, err)
+		return
+	}
+
+	handler.RespondJSON(w, http.StatusOK, map[string]string{"message": "If the email is registered, a password reset link will be sent."})
+}
+
+func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req dto.ResetPasswordRequest
+	if err := handler.DecodeAndValidate(r, h.validate, &req); err != nil {
+		handler.RespondError(w, err)
+		return
+	}
+
+	if err := h.svc.ResetPassword(r.Context(), req.Token, req.Password); err != nil {
+		handler.RespondError(w, err)
+		return
+	}
+
+	handler.RespondJSON(w, http.StatusOK, map[string]string{"message": "Password has been reset successfully."})
+}

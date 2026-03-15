@@ -6,7 +6,7 @@ This document provides essential context and instructions for the Gemini CLI age
 This project follows **Clean Architecture** principles in Go.
 - **`cmd/api`**: Application entry point.
 - **`internal/domain`**: Core business logic (Entities, Repository interfaces, Service interfaces). **Pure Go, no external dependencies.**
-- **`internal/infrastructure`**: Implementation details (Database, Redis, Repository implementations).
+- **`internal/infrastructure`**: Implementation details (Database, Redis, Email, Repository implementations).
 - **`internal/transport`**: Delivery mechanism (HTTP Handlers, Router, Middleware, DTOs).
 - **`internal/app`**: Dependency Injection wiring using Google Wire.
 - **`migrations/`**: Database schema migrations.
@@ -16,6 +16,7 @@ This project follows **Clean Architecture** principles in Go.
 - **Web Framework**: Chi
 - **Database**: PostgreSQL with GORM
 - **Cache**: Redis
+- **Email**: Resend ([Resend Go SDK](https://github.com/resend/resend-go))
 - **Dependency Injection**: Google Wire (`github.com/google/wire`)
 - **Testing**: Testify, Mockery (`github.com/vektra/mockery`)
 - **Documentation**: Swagger (`github.com/swaggo/swag`)
@@ -39,11 +40,12 @@ Use `task` to run common commands. **Do not run raw `go` commands unless necessa
 | `task migrate-new` | Creates a new migration file. Usage: `task migrate-new -- name_of_migration` |
 
 ## 📝 Coding Conventions
-1.  **Dependency Injection**: Always use `wire` for dependency injection. If you add a new service/repository, update `internal/app/wire.go` and run `task wire`.
+1.  **Dependency Injection**: Always use `wire` for dependency injection. If you add a new service/repository/infrastructure provider, update `internal/app/wire.go` or `internal/infrastructure/provider.go` and run `task wire`.
 2.  **Mocks**: Interfaces in `domain` must have mocks generated. Update `.mockery.yml` if adding a new package, then run `task mock`.
-3.  **Error Handling**: Use the custom `apperror` package (if available) or standard Go errors wrapped with context.
-4.  **Configuration**: Managed via `config.yaml` and `.env` (using Viper).
-5.  **API Docs**: Add comments to handlers for Swagger generation. Run `task swagger` after changes.
+3.  **Authorization (RBAC)**: Use `middleware.HasRole(entity.RoleAdmin)` to protect routes that require specific permissions. User roles are stored in JWT claims.
+4.  **Error Handling**: Use the custom `apperror` package (if available) or standard Go errors wrapped with context.
+5.  **Configuration**: Managed via `config.yaml` and `.env` (using Viper). Ensure new config keys are added to the `Config` struct in `internal/config/config.go`.
+6.  **API Docs**: Add comments to handlers for Swagger generation. Run `task swagger` after changes.
 
 ## ⚠️ Key Constraints
 - **Never commit secrets.** Ensure `.env` is ignored.

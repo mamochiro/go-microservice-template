@@ -17,8 +17,9 @@ func TestAuth(t *testing.T) {
 
 	generateToken := func(id uint, secret string, expired bool) string {
 		claims := jwt.MapClaims{
-			"sub": float64(id),
-			"exp": time.Now().Add(time.Hour).Unix(),
+			"sub":  float64(id),
+			"role": "user",
+			"exp":  time.Now().Add(time.Hour).Unix(),
 		}
 		if expired {
 			claims["exp"] = time.Now().Add(-time.Hour).Unix()
@@ -115,10 +116,10 @@ func TestValidateToken(t *testing.T) {
 	secret := "secret"
 
 	t.Run("Valid Token", func(t *testing.T) {
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": float64(1)})
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": float64(1), "role": "user"})
 		ts, _ := token.SignedString([]byte(secret))
 
-		id, err := validateToken(ts, secret)
+		id, _, err := validateToken(ts, secret)
 		assert.NoError(t, err)
 		assert.Equal(t, uint(1), id)
 	})
@@ -127,7 +128,7 @@ func TestValidateToken(t *testing.T) {
 		// This is a simplified check, jwt.Parse handles this
 		ts := fmt.Sprintf("%s.%s.", "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0", "eyJzdWIiOjF9")
 
-		_, err := validateToken(ts, secret)
+		_, _, err := validateToken(ts, secret)
 		assert.Error(t, err)
 	})
 }
